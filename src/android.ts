@@ -528,6 +528,14 @@ export class AndroidRobot implements Robot {
 		this.adb("shell", "input", "keyevent", "279");
 	}
 
+	public clearTextField(): void {
+		// Clear text in focused field by selecting all (Ctrl+A) and deleting
+		// input keycombination 113 29 && input keyevent 67
+
+		this.adb("shell", "input", "keycombination", "113", "29"); // KEYCODE_CTRL_LEFT down
+		this.adb("shell", "input", "keyevent", "67"); // KEYCODE_DEL (delete)
+	}
+
 	public async setOrientation(orientation: Orientation): Promise<void> {
 		const value = orientation === "portrait" ? 0 : 1;
 

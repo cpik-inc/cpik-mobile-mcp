@@ -601,9 +601,33 @@ export const createMcpServer = (): McpServer => {
 	// 	}
 	// );
 
+	// tool(
+	// 	"mobile_paste_from_clipboard",
+	// 	"Paste clipboard content into the currently focused EditText field (Android only)",
+	// 	{
+	// 		device: z
+	// 			.string()
+	// 			.describe(
+	// 				"The device identifier to use. Use mobile_list_available_devices to find which devices are available to you."
+	// 			),
+	// 	},
+	// 	async ({ device }) => {
+	// 		const robot = getRobotFromDevice(device);
+
+	// 		// Check if it's an Android device
+	// 		if (!(robot instanceof AndroidRobot)) {
+	// 			throw new ActionableError("Clipboard operations are only supported on Android devices");
+	// 		}
+
+	// 		// const clipboardContent = robot.getClipboard();
+	// 		await robot.pasteFromClipboard();
+	// 		return `Pasted from clipboard`;
+	// 	}
+	// );
+
 	tool(
-		"mobile_paste_from_clipboard",
-		"Paste clipboard content into the currently focused EditText field (Android only)",
+		"mobile_clear_text_field",
+		"Clear all text in the currently focused text field (Android only). Uses Ctrl+A to select all text and then deletes it.",
 		{
 			device: z
 				.string()
@@ -616,12 +640,11 @@ export const createMcpServer = (): McpServer => {
 
 			// Check if it's an Android device
 			if (!(robot instanceof AndroidRobot)) {
-				throw new ActionableError("Clipboard operations are only supported on Android devices");
+				throw new ActionableError("Clear text field is only supported on Android devices");
 			}
 
-			// const clipboardContent = robot.getClipboard();
-			await robot.pasteFromClipboard();
-			return `Pasted from clipboard`;
+			robot.clearTextField();
+			return `Cleared text field`;
 		}
 	);
 
