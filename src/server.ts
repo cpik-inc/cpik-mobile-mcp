@@ -2,9 +2,6 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types";
 import { z, ZodRawShape, ZodTypeAny } from "zod";
 import fs from "node:fs";
-import os from "node:os";
-import crypto from "node:crypto";
-import { execFileSync } from "node:child_process";
 
 import { error, trace } from "./logger";
 import { AndroidRobot, AndroidDeviceManager } from "./android";
@@ -13,20 +10,6 @@ import { SimctlManager } from "./iphone-simulator";
 import { IosManager, IosRobot } from "./ios";
 import { PNG } from "./png";
 import { isScalingAvailable, Image } from "./image-utils";
-import { getMobilecliPath } from "./mobilecli";
-
-interface MobilecliDevicesResponse {
-	status: "ok";
-	data: {
-		devices: Array<{
-			id: string;
-			name: string;
-			platform: "android" | "ios";
-			type: "real" | "emulator" | "simulator";
-			version: string;
-		}>;
-	};
-}
 
 export const getAgentVersion = (): string => {
 	const json = require("../package.json");
@@ -47,28 +30,16 @@ export const createMcpServer = (): McpServer => {
 	// an empty object to satisfy windsurf
 	const noParams = z.object({});
 
-	const getClientName = (): string => {
-		try {
-			const clientInfo = server.server.getClientVersion();
-			const clientName = clientInfo?.name || "unknown";
-			return clientName;
-		} catch (error: any) {
-			return "unknown";
-		}
-	};
-
 	const tool = (name: string, description: string, paramsSchema: ZodRawShape, cb: (args: z.objectOutputType<ZodRawShape, ZodTypeAny>) => Promise<string>) => {
 		const wrappedCb = async (args: ZodRawShape): Promise<CallToolResult> => {
 			try {
 				trace(`Invoking ${name} with args: ${JSON.stringify(args)}`);
 				const response = await cb(args);
 				trace(`=> ${response}`);
-				posthog("tool_invoked", { "ToolName": name }).then();
 				return {
 					content: [{ type: "text", text: response }],
 				};
 			} catch (error: any) {
-				posthog("tool_failed", { "ToolName": name }).then();
 				if (error instanceof ActionableError) {
 					return {
 						content: [{ type: "text", text: `${error.message}. Please fix the issue and try again.` }],
@@ -86,67 +57,6 @@ export const createMcpServer = (): McpServer => {
 
 		server.tool(name, description, paramsSchema, args => wrappedCb(args));
 	};
-
-	const posthog = async (event: string, properties: Record<string, string | number>) => {
-		try {
-			const url = "https://us.i.posthog.com/i/v0/e/";
-			const api_key = "phc_KHRTZmkDsU7A8EbydEK8s4lJpPoTDyyBhSlwer694cS";
-			const name = os.hostname() + process.execPath;
-			const distinct_id = crypto.createHash("sha256").update(name).digest("hex");
-			const systemProps: any = {
-				Platform: os.platform(),
-				Product: "mobile-mcp",
-				Version: getAgentVersion(),
-				NodeVersion: process.version,
-			};
-
-			const clientName = getClientName();
-			if (clientName !== "unknown") {
-				systemProps.AgentName = clientName;
-			}
-
-			await fetch(url, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json"
-				},
-				body: JSON.stringify({
-					api_key,
-					event,
-					properties: {
-						...systemProps,
-						...properties,
-					},
-					distinct_id,
-				})
-			});
-		} catch (err: any) {
-			// ignore
-		}
-	};
-
-	const getMobilecliVersion = (): string => {
-		try {
-			const path = getMobilecliPath();
-			const output = execFileSync(path, ["--version"], { encoding: "utf8" }).toString().trim();
-			if (output.startsWith("mobilecli version ")) {
-				return output.substring("mobilecli version ".length);
-			}
-
-			return "failed";
-		} catch (error: any) {
-			return "failed " + error.message;
-		}
-	};
-
-	const getMobilecliDevices = (): MobilecliDevicesResponse => {
-		const mobilecliPath = getMobilecliPath();
-		const mobilecliOutput = execFileSync(mobilecliPath, ["devices"], { encoding: "utf8" }).toString().trim();
-		return JSON.parse(mobilecliOutput) as MobilecliDevicesResponse;
-	};
-
-	const mobilecliVersion = getMobilecliVersion();
-	posthog("launch", { "MobilecliVersion": mobilecliVersion }).then();
 
 	const simulatorManager = new SimctlManager();
 
@@ -195,35 +105,6 @@ export const createMcpServer = (): McpServer => {
 			const androidTvDevices = androidDevices.filter(d => d.deviceType === "tv").map(d => d.deviceId);
 			const androidMobileDevices = androidDevices.filter(d => d.deviceType === "mobile").map(d => d.deviceId);
 
-			if (true) {
-				// gilm: this is new code to verify first that mobilecli detects more or equal number of devices.
-				// in an attempt to make the smoothest transition from go-ios+xcrun+adb+iproxy+sips+imagemagick+wda to
-				// a single cli tool.
-				const deviceCount = simulators.length + iosDevices.length + androidDevices.length;
-
-				let mobilecliDeviceCount = 0;
-				try {
-					const response = getMobilecliDevices();
-					if (response.status === "ok" && response.data && response.data.devices) {
-						mobilecliDeviceCount = response.data.devices.length;
-					}
-				} catch (error: any) {
-					// if mobilecli fails, we'll just set count to 0
-				}
-
-				if (deviceCount === mobilecliDeviceCount) {
-					posthog("debug_mobilecli_same_number_of_devices", {
-						"DeviceCount": deviceCount,
-						"MobilecliDeviceCount": mobilecliDeviceCount,
-					}).then();
-				} else {
-					posthog("debug_mobilecli_different_number_of_devices", {
-						"DeviceCount": deviceCount,
-						"MobilecliDeviceCount": mobilecliDeviceCount,
-						"DeviceCountDifference": deviceCount - mobilecliDeviceCount,
-					}).then();
-				}
-			}
 
 			const resp = ["Found these devices:"];
 			if (simulatorNames.length > 0) {
@@ -538,13 +419,6 @@ export const createMcpServer = (): McpServer => {
 
 				const screenshot64 = screenshot.toString("base64");
 				trace(`Screenshot taken: ${screenshot.length} bytes`);
-				posthog("tool_invoked", {
-					"ToolName": "mobile_take_screenshot",
-					"ScreenshotFilesize": screenshot64.length,
-					"ScreenshotMimeType": mimeType,
-					"ScreenshotWidth": pngSize.width,
-					"ScreenshotHeight": pngSize.height,
-				}).then();
 
 				return {
 					content: [{ type: "image", data: screenshot64, mimeType }]
