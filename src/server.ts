@@ -586,5 +586,77 @@ export const createMcpServer = (): McpServer => {
 		}
 	);
 
+	tool(
+		"mobile_set_clipboard",
+		"Set text to the device clipboard (Android only)",
+		{
+			device: z.string().describe("The device identifier to use. Use mobile_list_available_devices to find which devices are available to you."),
+			text: z.string().describe("The text to copy to clipboard"),
+		},
+		async ({ device, text }) => {
+			const robot = getRobotFromDevice(device);
+
+			// Check if it's an Android device
+			if (!(robot instanceof AndroidRobot)) {
+				throw new ActionableError("Clipboard operations are only supported on Android devices");
+			}
+
+			// Use cmd clipboard to set clipboard (Android 10+)
+			robot.adb("shell", "cmd", "clipboard", "set-text", text);
+
+			return `Set clipboard to: ${text}`;
+		}
+	);
+
+	tool(
+		"mobile_get_clipboard",
+		"Get text from the device clipboard (Android only)",
+		{
+			device: z.string().describe("The device identifier to use. Use mobile_list_available_devices to find which devices are available to you.")
+		},
+		async ({ device }) => {
+			const robot = getRobotFromDevice(device);
+
+			// Check if it's an Android device
+			if (!(robot instanceof AndroidRobot)) {
+				throw new ActionableError("Clipboard operations are only supported on Android devices");
+			}
+
+			// Get clipboard content using service call
+			const output = robot.adb("shell", "cmd", "clipboard", "get-text").toString().trim();
+
+			return `Clipboard content: ${output}`;
+		}
+	);
+
+	tool(
+		"mobile_paste_from_clipboard",
+		"Paste clipboard content into the currently focused EditText field (Android only)",
+		{
+			device: z.string().describe("The device identifier to use. Use mobile_list_available_devices to find which devices are available to you.")
+		},
+		async ({ device }) => {
+			const robot = getRobotFromDevice(device);
+
+			// Check if it's an Android device
+			if (!(robot instanceof AndroidRobot)) {
+				throw new ActionableError("Clipboard operations are only supported on Android devices");
+			}
+
+			// Get clipboard content first
+			const clipboardContent = robot.adb("shell", "cmd", "clipboard", "get-text").toString().trim();
+
+			if (!clipboardContent) {
+				return "Clipboard is empty, nothing to paste";
+			}
+
+			// Send the paste key event (KEYCODE_PASTE is 279)
+			// Alternative: Use Ctrl+V simulation
+			robot.adb("shell", "input", "keyevent", "279");
+
+			return `Pasted from clipboard: ${clipboardContent}`;
+		}
+	);
+
 	return server;
 };
