@@ -249,8 +249,8 @@ export const createMcpServer = (): McpServer => {
 				.describe(
 					"The device identifier to use. Use mobile_list_available_devices to find which devices are available to you."
 				),
-			x: z.number().describe("The x coordinate to click on the screen, in pixels"),
-			y: z.number().describe("The y coordinate to click on the screen, in pixels"),
+			x: z.number().describe("The x coordinate to click on the screen, in pixels, no comma"),
+			y: z.number().describe("The y coordinate to click on the screen, in pixels, no comma"),
 		},
 		async ({ device, x, y }) => {
 			const robot = getRobotFromDevice(device);
