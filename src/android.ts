@@ -1,10 +1,10 @@
-import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
+import path from "node:path";
 
 import * as xml from "fast-xml-parser";
 
-import { ActionableError, Button, InstalledApp, Robot, ScreenElement, ScreenElementRect, ScreenSize, SwipeDirection, Orientation } from "./robot";
+import { ActionableError, Button, InstalledApp, Orientation, Robot, ScreenElement, ScreenElementRect, ScreenSize, SwipeDirection } from "./robot";
 
 export interface AndroidDevice {
 	deviceId: string;
@@ -53,16 +53,16 @@ const getAdbPath = (): string => {
 };
 
 const BUTTON_MAP: Record<Button, string> = {
-	"BACK": "KEYCODE_BACK",
-	"HOME": "KEYCODE_HOME",
-	"VOLUME_UP": "KEYCODE_VOLUME_UP",
-	"VOLUME_DOWN": "KEYCODE_VOLUME_DOWN",
-	"ENTER": "KEYCODE_ENTER",
-	"DPAD_CENTER": "KEYCODE_DPAD_CENTER",
-	"DPAD_UP": "KEYCODE_DPAD_UP",
-	"DPAD_DOWN": "KEYCODE_DPAD_DOWN",
-	"DPAD_LEFT": "KEYCODE_DPAD_LEFT",
-	"DPAD_RIGHT": "KEYCODE_DPAD_RIGHT",
+	BACK: "KEYCODE_BACK",
+	HOME: "KEYCODE_HOME",
+	VOLUME_UP: "KEYCODE_VOLUME_UP",
+	VOLUME_DOWN: "KEYCODE_VOLUME_DOWN",
+	ENTER: "KEYCODE_ENTER",
+	DPAD_CENTER: "KEYCODE_DPAD_CENTER",
+	DPAD_UP: "KEYCODE_DPAD_UP",
+	DPAD_DOWN: "KEYCODE_DPAD_DOWN",
+	DPAD_LEFT: "KEYCODE_DPAD_LEFT",
+	DPAD_RIGHT: "KEYCODE_DPAD_RIGHT",
 };
 
 const TIMEOUT = 30000;
@@ -71,9 +71,7 @@ const MAX_BUFFER_SIZE = 1024 * 1024 * 4;
 type AndroidDeviceType = "tv" | "mobile";
 
 export class AndroidRobot implements Robot {
-
-	public constructor(private deviceId: string) {
-	}
+	public constructor(private deviceId: string) {}
 
 	public adb(...args: string[]): Buffer {
 		return execFileSync(getAdbPath(), ["-s", this.deviceId, ...args], {
@@ -100,10 +98,7 @@ export class AndroidRobot implements Robot {
 	}
 
 	public async getScreenSize(): Promise<ScreenSize> {
-		const screenSize = this.adb("shell", "wm", "size")
-			.toString()
-			.split(" ")
-			.pop();
+		const screenSize = this.adb("shell", "wm", "size").toString().split(" ").pop();
 
 		if (!screenSize) {
 			throw new Error("Failed to get screen size");
@@ -116,7 +111,16 @@ export class AndroidRobot implements Robot {
 
 	public async listApps(): Promise<InstalledApp[]> {
 		// only apps that have a launcher activity are returned
-		return this.adb("shell", "cmd", "package", "query-activities", "-a", "android.intent.action.MAIN", "-c", "android.intent.category.LAUNCHER")
+		return this.adb(
+			"shell",
+			"cmd",
+			"package",
+			"query-activities",
+			"-a",
+			"android.intent.action.MAIN",
+			"-c",
+			"android.intent.category.LAUNCHER"
+		)
 			.toString()
 			.split("\n")
 			.map(line => line.trim())
@@ -164,23 +168,23 @@ export class AndroidRobot implements Robot {
 		switch (direction) {
 			case "up":
 				x0 = x1 = centerX;
-				y0 = Math.floor(screenSize.height * 0.80);
-				y1 = Math.floor(screenSize.height * 0.20);
+				y0 = Math.floor(screenSize.height * 0.8);
+				y1 = Math.floor(screenSize.height * 0.2);
 				break;
 			case "down":
 				x0 = x1 = centerX;
-				y0 = Math.floor(screenSize.height * 0.20);
-				y1 = Math.floor(screenSize.height * 0.80);
+				y0 = Math.floor(screenSize.height * 0.2);
+				y1 = Math.floor(screenSize.height * 0.8);
 				break;
 			case "left":
-				x0 = Math.floor(screenSize.width * 0.80);
-				x1 = Math.floor(screenSize.width * 0.20);
-				y0 = y1 = Math.floor(screenSize.height * 0.50);
+				x0 = Math.floor(screenSize.width * 0.8);
+				x1 = Math.floor(screenSize.width * 0.2);
+				y0 = y1 = Math.floor(screenSize.height * 0.5);
 				break;
 			case "right":
-				x0 = Math.floor(screenSize.width * 0.20);
-				x1 = Math.floor(screenSize.width * 0.80);
-				y0 = y1 = Math.floor(screenSize.height * 0.50);
+				x0 = Math.floor(screenSize.width * 0.2);
+				x1 = Math.floor(screenSize.width * 0.8);
+				y0 = y1 = Math.floor(screenSize.height * 0.5);
 				break;
 			default:
 				throw new ActionableError(`Swipe direction "${direction}" is not supported`);
@@ -232,8 +236,7 @@ export class AndroidRobot implements Robot {
 		return this.adb("shell", "dumpsys", "SurfaceFlinger", "--display-id")
 			.toString()
 			.split("\n")
-			.filter(s => s.startsWith("Display "))
-			.length;
+			.filter(s => s.startsWith("Display ")).length;
 	}
 
 	private getFirstDisplayId(): string | null {
@@ -265,8 +268,7 @@ export class AndroidRobot implements Robot {
 
 		// fallback: parse dumpsys display for display info (compatible with older Android versions)
 		try {
-			const dumpsys = this.adb("shell", "dumpsys", "display")
-				.toString();
+			const dumpsys = this.adb("shell", "dumpsys", "display").toString();
 
 			// look for DisplayViewport entries with isActive=true and type=INTERNAL
 			const viewportMatch = dumpsys.match(/DisplayViewport\{type=INTERNAL[^}]*isActive=true[^}]*uniqueId='([^']+)'/);
@@ -405,23 +407,50 @@ export class AndroidRobot implements Robot {
 			return;
 		}
 
-		if (this.isAscii(text)) {
-			// adb shell input only supports ascii characters. and
-			// some of the keys have to be escaped.
-			const _text = this.escapeShellText(text);
-			this.adb("shell", "input", "text", _text);
-		} else if (await this.isDeviceKitInstalled()) {
-			// try sending over clipboard
+		if (await this.isDeviceKitInstalled()) {
+			// Use DeviceKit's clipboard method (preferred for all text)
+			console.log("Sending text to clipboard:", text);
 			const base64 = Buffer.from(text).toString("base64");
+			console.log("Base64 encoded text:", base64);
 
 			// send clipboard over and immediately paste it
-			this.adb("shell", "am", "broadcast", "-a", "devicekit.clipboard.set", "-e", "encoding", "base64", "-e", "text", base64, "-n", "com.mobilenext.devicekit/.ClipboardBroadcastReceiver");
+			this.adb(
+				"shell",
+				"am",
+				"broadcast",
+				"-a",
+				"devicekit.clipboard.set",
+				"-e",
+				"encoding",
+				"base64",
+				"-e",
+				"text",
+				base64,
+				"-n",
+				"com.mobilenext.devicekit/.ClipboardBroadcastReceiver"
+			);
+			console.log("Sent clipboard over");
 			this.adb("shell", "input", "keyevent", "KEYCODE_PASTE");
+			console.log("Pressed paste key event");
 
 			// clear clipboard when we're done
-			this.adb("shell", "am", "broadcast", "-a", "devicekit.clipboard.clear", "-n", "com.mobilenext.devicekit/.ClipboardBroadcastReceiver");
+			this.adb(
+				"shell",
+				"am",
+				"broadcast",
+				"-a",
+				"devicekit.clipboard.clear",
+				"-n",
+				"com.mobilenext.devicekit/.ClipboardBroadcastReceiver"
+			);
+		} else if (this.isAscii(text)) {
+			// Fallback to adb shell input for ASCII text only
+			const _text = this.escapeShellText(text);
+			this.adb("shell", "input", "text", _text);
 		} else {
-			throw new ActionableError("Non-ASCII text is not supported on Android, please install mobilenext devicekit, see https://github.com/mobile-next/devicekit-android");
+			throw new ActionableError(
+				"Non-ASCII text is not supported on Android, please install mobilenext devicekit, see https://github.com/mobile-next/devicekit-android"
+			);
 		}
 	}
 
@@ -449,12 +478,72 @@ export class AndroidRobot implements Robot {
 		await this.tap(x, y);
 	}
 
+	public async setClipboard(text: string): Promise<void> {
+		if (await this.isDeviceKitInstalled()) {
+			console.log("Setting clipboard to:", text);
+			// Use DeviceKit's broadcast method with Base64 encoding (preferred)
+			const base64 = Buffer.from(text).toString("base64");
+			this.adb(
+				"shell",
+				"am",
+				"broadcast",
+				"-a",
+				"devicekit.clipboard.set",
+				"-e",
+				"encoding",
+				"base64",
+				"-e",
+				"text",
+				base64,
+				"-n",
+				"com.mobilenext.devicekit/.ClipboardBroadcastReceiver"
+			);
+		} else {
+			console.log("DeviceKit not installed, falling back to cmd clipboard");
+			// Fallback to cmd clipboard (only supports ASCII)
+			const isAscii = this.isAscii(text);
+			if (!isAscii) {
+				console.log("Non-ASCII text not supported, falling back to cmd clipboard");
+				throw new ActionableError(
+					"Non-ASCII text is not supported on Android, please install mobilenext devicekit, see https://github.com/mobile-next/devicekit-android"
+				);
+			}
+			this.adb("shell", "cmd", "clipboard", "set-text", text);
+		}
+	}
+
+	public getClipboard(): string {
+		// Use cmd clipboard to get text (Android 10+)
+		return this.adb("shell", "cmd", "clipboard", "get-text").toString().trim();
+	}
+
+	public async pasteFromClipboard(): Promise<void> {
+		// const clipboardContent = this.getClipboard();
+
+		// if (!clipboardContent) {
+		// 	throw new ActionableError("Clipboard is empty, nothing to paste");
+		// }
+
+		// Send the paste key event (KEYCODE_PASTE is 279)
+		this.adb("shell", "input", "keyevent", "279");
+	}
+
 	public async setOrientation(orientation: Orientation): Promise<void> {
 		const value = orientation === "portrait" ? 0 : 1;
 
 		// disable auto-rotation prior to setting the orientation
 		this.adb("shell", "settings", "put", "system", "accelerometer_rotation", "0");
-		this.adb("shell", "content", "insert", "--uri", "content://settings/system", "--bind", "name:s:user_rotation", "--bind", `value:i:${value}`);
+		this.adb(
+			"shell",
+			"content",
+			"insert",
+			"--uri",
+			"content://settings/system",
+			"--bind",
+			"name:s:user_rotation",
+			"--bind",
+			`value:i:${value}`
+		);
 	}
 
 	public async getOrientation(): Promise<Orientation> {
@@ -503,7 +592,6 @@ export class AndroidRobot implements Robot {
 }
 
 export class AndroidDeviceManager {
-
 	private getDeviceType(name: string): AndroidDeviceType {
 		const device = new AndroidRobot(name);
 		const features = device.getSystemFeatures();
