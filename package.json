@@ -12,6 +12,7 @@
   },
   "license": "Apache-2.0",
   "scripts": {
+    "dev": "tsx watch src/index.ts --port 9918",
     "build": "tsc && chmod +x lib/index.js",
     "lint": "eslint .",
     "fixlint": "eslint . --fix",
@@ -52,6 +53,7 @@
     "mocha": "^11.1.0",
     "nyc": "^17.1.0",
     "ts-node": "^10.9.2",
+    "tsx": "^4.20.6",
     "typescript": "^5.8.2"
   },
   "main": "index.js",
