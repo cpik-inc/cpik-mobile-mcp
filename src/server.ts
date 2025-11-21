@@ -109,21 +109,21 @@ export const createMcpServer = (): McpServer => {
 			const androidTvDevices = androidDevices.filter(d => d.deviceType === "tv").map(d => d.deviceId);
 			const androidMobileDevices = androidDevices.filter(d => d.deviceType === "mobile").map(d => d.deviceId);
 
-			const resp = ["Found these devices:"];
+			const resp = ["Devices:"];
 			if (simulatorNames.length > 0) {
 				resp.push(`iOS simulators: [${simulatorNames.join(",")}]`);
 			}
 
 			if (iosDevices.length > 0) {
-				resp.push(`iOS devices: [${iosDeviceNames.join(",")}]`);
+				resp.push(`iOS: [${iosDeviceNames.join(",")}]`);
 			}
 
 			if (androidMobileDevices.length > 0) {
-				resp.push(`Android devices: [${androidMobileDevices.join(",")}]`);
+				resp.push(`Android: [${androidMobileDevices.join(",")}]`);
 			}
 
 			if (androidTvDevices.length > 0) {
-				resp.push(`Android TV devices: [${androidTvDevices.join(",")}]`);
+				resp.push(`Android TV: [${androidTvDevices.join(",")}]`);
 			}
 
 			return resp.join("\n");
@@ -307,8 +307,13 @@ export const createMcpServer = (): McpServer => {
 					"The device identifier to use. Use mobile_list_available_devices to find which devices are available to you."
 				),
 			type: z.string().optional().describe("The type of element to filter by. If not provided, all elements will be returned."),
+			text: z.string().optional().describe("The text of the element to filter by. If not provided, all elements will be returned."),
+			min_width: z
+				.number()
+				.optional()
+				.describe("The minimum width of the element to filter by. If not provided, all elements will be returned."),
 		},
-		async ({ device, type }) => {
+		async ({ device, type, text, min_width }) => {
 			const robot = getRobotFromDevice(device);
 			const elements = await robot.getElementsOnScreen();
 
@@ -335,9 +340,11 @@ export const createMcpServer = (): McpServer => {
 
 					return out;
 				})
-				.filter(element => !type || element.type.toLowerCase().includes(type.toLowerCase()));
+				.filter(element => !type || element.type.toLowerCase().includes(type.toLowerCase()))
+				.filter(element => !text || element.text.toLowerCase().includes(text.toLowerCase()))
+				.filter(element => !min_width || element.coordinates.width >= min_width);
 
-			return `Found these elements on screen: ${JSON.stringify(result)}`;
+			return `${JSON.stringify(result)}`;
 		}
 	);
 
@@ -359,7 +366,7 @@ export const createMcpServer = (): McpServer => {
 		async ({ device, button }) => {
 			const robot = getRobotFromDevice(device);
 			await robot.pressButton(button);
-			return `Pressed the button: ${button}`;
+			return `${button}`;
 		}
 	);
 
