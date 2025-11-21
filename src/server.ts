@@ -306,33 +306,36 @@ export const createMcpServer = (): McpServer => {
 				.describe(
 					"The device identifier to use. Use mobile_list_available_devices to find which devices are available to you."
 				),
+			type: z.string().optional().describe("The type of element to filter by. If not provided, all elements will be returned."),
 		},
-		async ({ device }) => {
+		async ({ device, type }) => {
 			const robot = getRobotFromDevice(device);
 			const elements = await robot.getElementsOnScreen();
 
-			const result = elements.map(element => {
-				const out: any = {
-					type: element.type,
-					text: element.text,
-					label: element.label,
-					name: element.name,
-					value: element.value,
-					identifier: element.identifier,
-					coordinates: {
-						x: element.rect.x,
-						y: element.rect.y,
-						width: element.rect.width,
-						height: element.rect.height,
-					},
-				};
+			const result = elements
+				.map(element => {
+					const out: any = {
+						type: element.type,
+						text: element.text,
+						label: element.label,
+						name: element.name,
+						value: element.value,
+						identifier: element.identifier,
+						coordinates: {
+							x: element.rect.x,
+							y: element.rect.y,
+							width: element.rect.width,
+							height: element.rect.height,
+						},
+					};
 
-				if (element.focused) {
-					out.focused = true;
-				}
+					if (element.focused) {
+						out.focused = true;
+					}
 
-				return out;
-			});
+					return out;
+				})
+				.filter(element => !type || element.type.toLowerCase().includes(type.toLowerCase()));
 
 			return `Found these elements on screen: ${JSON.stringify(result)}`;
 		}

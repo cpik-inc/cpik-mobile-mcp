@@ -350,10 +350,25 @@ export class AndroidRobot implements Robot {
 	}
 
 	public async getElementsOnScreen(): Promise<ScreenElement[]> {
-		const parsedXml = await this.getUiAutomatorXml();
-		const hierarchy = parsedXml.hierarchy;
-		const elements = this.collectElements(hierarchy.node);
-		return elements;
+		// Retry up to 3 times if we get empty elements (might be during screen transition)
+		for (let retry = 0; retry < 3; retry++) {
+			const parsedXml = await this.getUiAutomatorXml();
+			const hierarchy = parsedXml.hierarchy;
+			const elements = this.collectElements(hierarchy.node);
+
+			// If we got elements, return them
+			if (elements.length > 0) {
+				return elements;
+			}
+
+			// If empty and not last retry, wait a bit before retrying
+			if (retry < 2) {
+				await new Promise(resolve => setTimeout(resolve, 500));
+			}
+		}
+
+		// After all retries, return empty array (might be legitimately empty screen)
+		return [];
 	}
 
 	public async terminateApp(packageName: string): Promise<void> {
