@@ -648,5 +648,28 @@ export const createMcpServer = (): McpServer => {
 		}
 	);
 
+	tool(
+		"mobile_get_device_hw_info",
+		"Get hardware information about the device including manufacturer, model, Android version, CPU architecture, and more (Android only).",
+		{
+			device: z
+				.string()
+				.describe(
+					"The device identifier to use. Use mobile_list_available_devices to find which devices are available to you."
+				),
+		},
+		async ({ device }) => {
+			const robot = getRobotFromDevice(device);
+
+			// Check if it's an Android device
+			if (!(robot instanceof AndroidRobot)) {
+				throw new ActionableError("Get device hardware info is only supported on Android devices");
+			}
+
+			const hwInfo = robot.getDeviceHardwareInfo();
+			return JSON.stringify(hwInfo, null, 2);
+		}
+	);
+
 	return server;
 };

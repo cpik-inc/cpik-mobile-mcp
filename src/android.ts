@@ -559,6 +559,38 @@ export class AndroidRobot implements Robot {
 		return rotation === "0" ? "portrait" : "landscape";
 	}
 
+	public getDeviceHardwareInfo(): {
+		manufacturer: string;
+		model: string;
+		brand: string;
+		device: string;
+		androidVersion: string;
+		sdkVersion: string;
+		cpuAbi: string;
+		buildId: string;
+		} {
+		// Get various device hardware properties using getprop
+		const manufacturer = this.adb("shell", "getprop", "ro.product.manufacturer").toString().trim();
+		const model = this.adb("shell", "getprop", "ro.product.model").toString().trim();
+		const brand = this.adb("shell", "getprop", "ro.product.brand").toString().trim();
+		const device = this.adb("shell", "getprop", "ro.product.device").toString().trim();
+		const androidVersion = this.adb("shell", "getprop", "ro.build.version.release").toString().trim();
+		const sdkVersion = this.adb("shell", "getprop", "ro.build.version.sdk").toString().trim();
+		const cpuAbi = this.adb("shell", "getprop", "ro.product.cpu.abi").toString().trim();
+		const buildId = this.adb("shell", "getprop", "ro.build.id").toString().trim();
+
+		return {
+			manufacturer,
+			model,
+			brand,
+			device,
+			androidVersion,
+			sdkVersion,
+			cpuAbi,
+			buildId,
+		};
+	}
+
 	private async getUiAutomatorDump(): Promise<string> {
 		for (let tries = 0; tries < 10; tries++) {
 			const dump = this.adb("exec-out", "uiautomator", "dump", "/dev/tty").toString();
